@@ -1,0 +1,21 @@
+{
+  "server": {
+    "port": 1567,
+    "xampp_server_url": "http://localhost:80"
+  },
+  "cache": {
+    "dynamic_page_expiration_ms": 60000,
+    "static_page_expiration_ms": 18000000,
+    "cleanup_interval_minutes": 5
+  },
+  "dynamic_page_detection": {
+    "keywords": [
+      "submit",
+      "process",
+      "handle",
+      "result",
+      "action",
+      "traitement"
+    ]
+  }
+}
