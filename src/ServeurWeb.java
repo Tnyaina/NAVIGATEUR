@@ -168,8 +168,7 @@ public class ServeurWeb {
 
                 // Générer l'ID utilisateur basé sur User-Agent et IP
                 userId = requestHeaders.getOrDefault("user-agent", "") + "-" +
-                        clientSocket.getInetAddress().toString() + "-" +
-                        clientSocket.getPort();
+                        clientSocket.getInetAddress().toString();
 
                 USER_CACHES.putIfAbsent(userId, new ConcurrentHashMap<>());
 
@@ -491,6 +490,8 @@ public class ServeurWeb {
             System.out.println("set-dynamic-expiration <milliseconds> : Modifier l'expiration des pages dynamiques");
             System.out.println("set-static-expiration <milliseconds> : Modifier l'expiration des pages statiques");
             System.out.println("clear-all : Supprimer tous les caches");
+            System.out.println("list-cache : Afficher toutes les entrées en cache");
+            System.out.println("remove-cache <url> : Supprimer une entrée spécifique du cache pour tous les utilisateurs");
             System.out.println("stats : Afficher les statistiques du cache");
             System.out.println("help : Afficher l'aide");
             System.out.println("exit : Quitter le serveur");
@@ -544,6 +545,33 @@ public class ServeurWeb {
                         printCacheStats();
                         break;
 
+                    case "list-cache":
+                        List<ServeurWeb.CacheInfo> caches = ServeurWeb.listCacheEntries();
+                        System.out.println("\n=== Liste des entrées en cache ===");
+                        if (caches.isEmpty()) {
+                            System.out.println("Aucune entrée en cache.");
+                        } else {
+                            for (ServeurWeb.CacheInfo info : caches) {
+                                long timeRemaining = (info.getExpirationTime() - System.currentTimeMillis()) / 1000;
+                                System.out.println("URL: " + info.getUrl() +
+                                        " | Type: " + (info.isDynamic() ? "Dynamique" : "Statique") +
+                                        " | Expiration: " + timeRemaining + "s" +
+                                        " | User ID: " + info.getUserId());
+                            }
+                        }
+                        System.out.println("==========================\n");
+                        break;
+
+                    case "remove-cache":
+                        if (parts.length < 2) {
+                            System.out.println("Usage: remove-cache <url>");
+                            return;
+                        }
+                        String urlToRemove = parts[1];
+                        int entriesRemoved = ServeurWeb.removeFromCacheByUrl(urlToRemove);
+                        System.out.println(entriesRemoved + " entrée(s) supprimée(s) pour l'URL: " + urlToRemove);
+                        break;
+
                     case "help":
                         printHelp();
                         break;
@@ -577,16 +605,34 @@ public class ServeurWeb {
             System.out.println("==========================\n");
         }
 
+
+
         private void printHelp() {
             System.out.println("\n=== Aide des commandes ===");
             System.out.println("set-dynamic-expiration <milliseconds> : Définir le temps d'expiration des pages dynamiques");
             System.out.println("set-static-expiration <milliseconds> : Définir le temps d'expiration des pages statiques");
             System.out.println("clear-all : Supprimer tous les caches");
+            System.out.println("list-cache : Afficher toutes les entrées en cache");
+            System.out.println("remove-cache <url> : Supprimer une entrée spécifique du cache pour tous les utilisateurs");
             System.out.println("stats : Afficher les statistiques actuelles du cache");
             System.out.println("help : Afficher ce message d'aide");
             System.out.println("exit : Arrêter le serveur");
             System.out.println("=======================\n");
         }
+    }
+
+    public static int removeFromCacheByUrl(String url) {
+        int count = 0;
+        for (ConcurrentHashMap<String, CacheEntry> userCache : USER_CACHES.values()) {
+            if (userCache.remove(url) != null) {
+                count++;
+            }
+        }
+
+        // Nettoyer les caches utilisateurs vides
+        USER_CACHES.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+
+        return count;
     }
 
     // Ajoutez ces variables et méthodes à la classe ServeurWeb
